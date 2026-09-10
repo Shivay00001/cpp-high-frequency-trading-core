@@ -1,6 +1,12 @@
+![C++ High-Frequency Trading Core Banner](https://image.pollinations.ai/prompt/futuristic%20high-frequency%20trading%20engine%20banner%2C%20dark%20theme%2C%20glowing%20cyan%20order%20book%20depth%20chart%2C%20candlesticks%2C%20C%2B%2B%20code%20aesthetic%2C%20ultra%20wide%2C%20professional%20fintech%20visual?width=1200&height=400&nologo=true)
+
 # C++ High-Frequency Trading Core
 
-A C++20 prototype of a limit order book matching engine, implementing price-time priority matching, order lifecycle management, and a simulation harness. Built by **VisionQuantech** as the foundational core for a high-frequency trading system.
+A **C++20 prototype of a limit order book matching engine**, implementing price-time priority matching, order lifecycle management, and a simulation harness. Built by **VisionQuantech** as the foundational core for a high-frequency trading system.
+
+[![C++20](https://img.shields.io/badge/C%2B%2B-20-blue.svg)](https://en.cppreference.com/w/cpp/20)
+[![CMake](https://img.shields.io/badge/CMake-%E2%89%A53.10-green.svg)](https://cmake.org)
+[![License](https://img.shields.io/badge/License-VisionQuantech%20Custom-orange.svg)](LICENSE)
 
 ---
 
@@ -25,7 +31,10 @@ This repository is an **early-stage prototype / educational simulation**, not a 
 
 The codebase consists of three core components under `src/`:
 
+![Order Book Matching Diagram](https://image.pollinations.ai/prompt/technical%20diagram%20style%20illustration%20of%20a%20limit%20order%20book%20matching%20engine%2C%20bid%20and%20ask%20price%20ladders%20converging%2C%20dark%20blue%20fintech%20aesthetic%2C%20minimalist?width=800&height=400&nologo=true)
+
 ### 1. `order.h` — Order Model
+
 Defines the `OrderType` enum (`BUY` / `SELL`) and the `Order` struct:
 
 ```cpp
@@ -41,12 +50,14 @@ struct Order {
 Orders are managed via `std::shared_ptr`, allowing the book and matching logic to share ownership safely.
 
 ### 2. `order_book.h` — Matching Engine
+
 The `OrderBook` class maintains two price-level maps:
 
 - **Asks**: `std::map<double, std::list<Order>>` — naturally ascending (best ask = `begin()`)
 - **Bids**: same container, iterated in **reverse** (`rbegin()`) so the highest bid is matched first
 
 **Matching flow (`addOrder`):**
+
 1. An incoming order first attempts to **match** against the opposite side:
    - `BUY` orders call `match()` against asks, walking from the lowest ask upward and stopping when the ask price exceeds the buy limit.
    - `SELL` orders call `matchSell()` against bids, walking from the highest bid downward and stopping when the bid falls below the sell limit.
@@ -55,6 +66,7 @@ The `OrderBook` class maintains two price-level maps:
 4. Empty price levels are erased from the map to keep the book clean.
 
 ### 3. `main.cpp` — Simulation Harness
+
 The executable demonstrates the engine end-to-end:
 
 1. Seeds the book with two asks (`100.50 x 100`, `101.00 x 50`) and one bid (`99.00 x 100`)
@@ -64,11 +76,50 @@ The executable demonstrates the engine end-to-end:
 
 **Build system:** CMake ≥ 3.10, C++20, single executable target `HFTCore`.
 
+### Component Diagram
+
+```mermaid
+graph TD
+    A[main.cpp<br/>Simulation Harness] -->|creates shared_ptr&lt;Order&gt;| B[OrderBook<br/>order_book.h]
+    B -->|BUY order| C[match<br/>against ASKS<br/>ascending]
+    B -->|SELL order| D[matchSell<br/>against BIDS<br/>descending via rbegin]
+    C --> E[processLevel<br/>FIFO within price level]
+    D --> E
+    E -->|partial / full fills| F[TRADE output<br/>stdout]
+    E -->|residual qty| G[Resting Order<br/>posted to book]
+    B --> H[printBook<br/>depth visualization]
+```
+
+### Order Matching Sequence
+
+```mermaid
+sequenceDiagram
+    participant M as main.cpp
+    participant OB as OrderBook
+    participant A as Asks (map)
+    participant B as Bids (map)
+
+    M->>OB: addOrder(SELL 100.50 x 100)
+    OB->>A: post to asks[100.50]
+    M->>OB: addOrder(BUY 99.00 x 100)
+    OB->>B: post to bids[99.00]
+    M->>OB: addOrder(BUY 100.50 x 120)
+    OB->>A: match() — walk lowest ask up
+    loop FIFO within price level 100.50
+        OB->>OB: processLevel(): tradeQty = min(120, 100)
+        OB-->>M: TRADE: 100 @ 100.5
+    end
+    OB->>A: erase empty level 100.50
+    OB->>B: rest residual BUY 100.50 x 20
+    OB->>OB: printBook()
+```
+
 ---
 
 ## 🚀 Building & Running Locally
 
 ### Prerequisites
+
 - CMake ≥ 3.10
 - A C++20-capable compiler (GCC 10+, Clang 10+, MSVC 2019+)
 
@@ -186,21 +237,37 @@ docker-compose up --build
 An honest evaluation of the current state of this repository:
 
 **What works:**
+
 - ✅ The core matching logic in `src/order_book.h` is **functionally correct** for the demonstrated scenarios: price-time priority, multi-level sweeps, partial fills, and resting of residual quantity all behave as expected.
 - ✅ The CMake build is valid and the `src/` code compiles and runs as a self-contained demo.
 - ✅ The code is readable and reasonably structured for a prototype.
 
 **What is broken or missing:**
-- ❌ **The Dockerfile does not work.** It references `main.cpp` at the repository root (which doesn't exist — sources live in `src/`) and bypasses CMake entirely. The stale `main.cpp` shown in an earlier revision (a trivial `std::thread` hello-world) is no longer the entry point. Docker builds will fail until the Dockerfile is fixed (see above).
+
+- ❌ **The Dockerfile does not work.** It references `main.cpp` at the repository root (which doesn't exist — sources live in `src/`) and bypasses CMake entirely. Docker builds will fail until the Dockerfile is fixed (see above).
 - ❌ **There is no `docker-compose.yml`**, despite generic deployment instructions implying one.
 - ❌ **No actual market data or networking.** There is no feed handler, no FIX/ITCH protocol support, no socket I/O — orders are hardcoded in `main.cpp`.
 - ❌ **Not actually low-latency.** The design uses `std::map`, `std::list`, `std::shared_ptr`, floating-point prices (`double`), and iostream logging on the hot path — all of which are inappropriate for genuine HFT. A production engine would use object pools, intrusive containers, fixed-point/integer prices, cache-friendly flat structures, and lock-free queues.
-- ❌ **No order cancellation or modification** (`cancelOrder` / `modifyOrder` are absent), no order IDs index for lookup.
+- ❌ **No order cancellation or modification** (`cancelOrder` / `modifyOrder` are absent), no order ID index for lookup.
 - ❌ **No tests** — no unit tests, no CI pipeline, no sanitizers/fuzzing configured.
 - ❌ **No risk controls** — no position limits, fat-finger checks, or kill-switch logic.
 - ❌ Floating-point `double` prices used as map keys can cause subtle precision issues at price-level boundaries.
 
 **Verdict:** This is a **solid educational prototype** demonstrating correct limit-order-book matching semantics, and it compiles/runs locally via CMake. It is **not production-ready**, is not a real high-frequency system in the latency sense, and its containerization is currently broken. Significant work (networking, latency engineering, testing, risk controls, fixed Docker build) would be required before any real-world use.
+
+---
+
+## 🛣️ Roadmap
+
+```mermaid
+graph LR
+    A[Current<br/>LOB Prototype] --> B[Fixed Dockerfile<br/>+ docker-compose]
+    B --> C[Unit Tests<br/>+ CI Pipeline]
+    C --> D[Order Cancel/Modify<br/>+ ID Index]
+    D --> E[Fixed-Point Prices<br/>+ Memory Pools]
+    E --> F[Feed Handler<br/>FIX / ITCH]
+    F --> G[Risk Controls<br/>+ Kill Switch]
+```
 
 ---
 
