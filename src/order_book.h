@@ -91,7 +91,7 @@ public:
   }
 
   void processLevel(std::shared_ptr<Order> order,
-                    std::list<std::shared_ptr<Order>> &orders, bool &isEmpty) {
+                    std::list<std::shared_ptr<Order>> &orders, bool isEmpty) {
     auto it = orders.begin();
     while (it != orders.end() && order->quantity > 0) {
       auto &matchOrder = *it;
