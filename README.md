@@ -2,6 +2,8 @@
 
 # C++ High-Frequency Trading Core
 
+Built by [VisionQuantech](https://visionquantech.com) — AI agents, apps & tools for small businesses.
+
 A **C++20 limit order book matching engine** implementing price-time priority matching, order lifecycle management, and a simulation harness. Built by **VisionQuantech** as the foundational core for a high-frequency trading system.
 
 [![C++20](https://img.shields.io/badge/C%2B%2B-20-blue.svg)](https://en.cppreference.com/w/cpp/20)
